@@ -18,7 +18,7 @@ jobs:
       myCoolDataFromMultiline: ${{ steps.set_step_output.outputs.my_step_output-multiLine }}
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: set outputs JSON value
         id: set_step_output
         run: |-
