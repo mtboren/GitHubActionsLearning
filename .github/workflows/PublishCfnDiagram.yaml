@@ -1,0 +1,59 @@
+name: Generate, Publish CFN Diagram
+description: Generate CloudFormation template diagram, publish to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - CFN-TestTemplate.yaml
+      - .github/workflows/PublishCfnDiagram.yaml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  ## permissions required to make a Pages deployment are "write" for both `pages` and `id-token`
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+env:
+  PAGES_DIRECTORY_RELATIVE_PATH: ./_site  ## aligning with GH Actions `actions/upload-pages-artifact` default of "_site/"
+  CFN_TEMPLATE_RELATIVE_PATH: CFN-TestTemplate.yaml
+
+jobs:
+  generate-diagram:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Generate diagram
+        run: |
+          if (-not (Test-Path -Path $env:PAGES_DIRECTORY_RELATIVE_PATH)) {New-Item -ItemType Directory -Path $env:PAGES_DIRECTORY_RELATIVE_PATH}
+          ## run cfn-diagram, making HTML page with vis.js interactivity
+          npx --yes @mhlabs/cfn-diagram html --template-file $env:CFN_TEMPLATE_RELATIVE_PATH --output-path $env:PAGES_DIRECTORY_RELATIVE_PATH --skip-synth
+
+      - name: Upload GHPages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ${{ env.PAGES_DIRECTORY_RELATIVE_PATH }}
+
+  ## requires GH repo to be public (or be on a paid plan that supports GH Pages for private repos)
+  deploy:
+    needs: generate-diagram
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
